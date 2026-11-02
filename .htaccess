@@ -1,0 +1,18 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(?:backend|docs|frontend|storage|tests)(?:/|$) - [F,END,NC]
+</IfModule>
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "(?i)\.(?:sqlite(?:-(?:wal|shm))?|db(?:-(?:wal|shm))?|sql|bak|backup|log)$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "^(?:README\.md|CHANGELOG\.md|CONTRIBUTING\.md|compose\.ya?ml|Dockerfile|composer\.(?:json|lock)|package(?:-lock)?\.json|phpunit\.xml|phpstan\.neon)$">
+    Require all denied
+</FilesMatch>

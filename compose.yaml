@@ -1,0 +1,136 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: allshop
+      MYSQL_USER: allshop
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env.compose}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env.compose}
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - allshop_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u $$MYSQL_USER --password=$$MYSQL_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      APP_NAME: All Shop API
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: ${BACKEND_APP_KEY:?Set BACKEND_APP_KEY in .env.compose}
+      APP_URL: http://localhost:8000
+      APP_LOCALE: bn
+      APP_FALLBACK_LOCALE: en
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: allshop
+      DB_USERNAME: allshop
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env.compose}
+      SESSION_DRIVER: file
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      REDIS_CLIENT: predis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "127.0.0.1:8000:8000"
+    command: sh -c "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  queue:
+    build:
+      context: ./backend
+    environment:
+      APP_NAME: All Shop API
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: ${BACKEND_APP_KEY:?Set BACKEND_APP_KEY in .env.compose}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: allshop
+      DB_USERNAME: allshop
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env.compose}
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      REDIS_CLIENT: predis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    command: ["php", "artisan", "queue:work", "--tries=3", "--timeout=90"]
+    depends_on:
+      api:
+        condition: service_healthy
+
+  scheduler:
+    build:
+      context: ./backend
+    environment:
+      APP_NAME: All Shop API
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: ${BACKEND_APP_KEY:?Set BACKEND_APP_KEY in .env.compose}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: allshop
+      DB_USERNAME: allshop
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env.compose}
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      REDIS_CLIENT: predis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    command: ["php", "artisan", "schedule:work"]
+    depends_on:
+      api:
+        condition: service_healthy
+
+  storefront:
+    build:
+      context: ./frontend
+      args:
+        APP_NAME: storefront
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  admin:
+    build:
+      context: ./frontend
+      args:
+        APP_NAME: admin
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+    ports:
+      - "127.0.0.1:3001:3000"
+
+volumes:
+  allshop_mysql_data:

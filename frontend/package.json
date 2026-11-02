@@ -1,0 +1,16 @@
+{
+  "name": "all-shop-frontend",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "overrides": {
+    "minimatch": "^11.0.1"
+  },
+  "scripts": {
+    "dev:storefront": "npm run dev --workspace=storefront",
+    "dev:admin": "npm run dev --workspace=admin",
+    "lint": "npm run lint --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  }
+}
